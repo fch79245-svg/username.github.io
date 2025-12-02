@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>御姐专属今天吃什么小转盘</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#111a33; --text:#e9ecff; --muted:#aab3d6; --accent:#7c5cff;
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Microsoft YaHei", Arial;
+      background: radial-gradient(1200px 600px at 20% 10%, rgba(124,92,255,.25), transparent 60%),
+                  radial-gradient(1000px 600px at 80% 20%, rgba(0,214,214,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:1000px; margin:0 auto; padding:28px 18px 40px;}
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+    h1{margin:0; font-size:26px; letter-spacing:.2px}
+    .sub{margin:8px 0 0; color:var(--muted); font-size:14px}
+
+    .grid{display:grid; grid-template-columns: 420px 1fr; gap:18px; align-items:start;}
+    @media (max-width: 900px){ .grid{grid-template-columns: 1fr;} }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .wheelBox{display:grid; place-items:center; padding:18px; position:relative;}
+    canvas{display:block; width:360px; height:360px;}
+
+    .pointer{
+      position:absolute;
+      top: 18px;
+      left:50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 22px solid rgba(233,236,255,.95);
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+    }
+    .centerDot{
+      position:absolute; width:18px; height:18px; border-radius:999px;
+      background: rgba(233,236,255,.9);
+      box-shadow: 0 8px 18px rgba(0,0,0,.35);
+    }
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    button{
+      border:0; cursor:pointer;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-weight:650;
+      color: var(--text);
+      background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(0,214,214,.55));
+      box-shadow: 0 14px 30px rgba(124,92,255,.18);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    button:hover{transform: translateY(-1px); filter:saturate(1.05)}
+    button:disabled{opacity:.55; cursor:not-allowed; transform:none}
+
+    .btn2{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow:none;
+    }
+
+    .result{
+      margin-top: 12px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .result .label{color:var(--muted); font-size:13px}
+    .result .val{font-size:20px; margin-top:4px; font-weight:800}
+
+    textarea{
+      width:100%; min-height: 220px; resize:vertical;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(10,14,30,.5);
+      color: var(--text);
+      outline:none;
+      line-height: 1.35;
+    }
+    textarea:focus{border-color: rgba(124,92,255,.55); box-shadow: 0 0 0 3px rgba(124,92,255,.20)}
+
+    .hint{color:var(--muted); font-size:13px; line-height:1.35}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px; border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:11px; color:var(--text)}
+    .hr{height:1px; background: rgba(255,255,255,.08); margin: 12px 0}
+    footer{margin-top:16px; color:var(--muted); font-size:12px}
+    a{color:inherit}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>御姐专属今天吃什么小转盘</h1>
+        <p class="sub">点击“开始旋转”，让选择困难交给概率。</p>
+      </div>
+      <div class="pill">提示：改完食物列表后点 <span class="kbd">应用列表</span> 即可</div>
+    </header>
+
+    <div class="grid">
+      <div class="card wheelBox">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="360" height="360" aria-label="food wheel"></canvas>
+        <div class="centerDot" aria-hidden="true"></div>
+
+        <div class="row" style="margin-top:14px; justify-content:center;">
+          <button id="spinBtn">开始旋转</button>
+          <button id="shuffleBtn" class="btn2" title="仅打乱排序，不改变内容">打乱顺序</button>
+          <button id="resetBtn" class="btn2" title="恢复默认列表">恢复默认</button>
+        </div>
+
+        <div class="result" style="width:100%; max-width: 380px;">
+          <div class="label">结果 Result</div>
+          <div class="val" id="resultVal">—</div>
+          <div class="hr"></div>
+          <div class="hint" id="metaHint">等你按下开始旋转。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <div style="font-weight:800; font-size:16px;">食物列表（每行一个）</div>
+            <div class="hint">Food list (one item per line)</div>
+          </div>
+          <div class="row">
+            <button id="applyBtn" class="btn2">应用列表</button>
+            <button id="copyBtn" class="btn2">复制结果</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <textarea id="listBox" spellcheck="false"></textarea>
+          <div class="row" style="margin-top:10px; justify-content:space-between;">
+            <div class="hint">会自动保存到你的浏览器（localStorage）。</div>
+            <div class="hint" id="countHint">—</div>
+          </div>
+        </div>
+        <footer>
+          小技巧：可以把“自选/外卖/食堂/下楼买”也当作选项，还可以加上“今天不纠结：随便”。
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Data ======
+    const DEFAULT_ITEMS = [
+      "火锅",
+      "麻辣烫",
+      "烤肉",
+      "寿司",
+      "披萨",
+      "牛肉饭",
+      "沙拉",
+      "炒饭",
+      "炒面",
+      "盖浇饭",
+      "饺子",
+      "小龙虾",
+      "烤鱼",
+      "米线",
+      "粥/蒸点",
+      "三明治"
+    ];
+
+    const LS_KEY = "food_spinner_items_v1";
+
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+
+    const spinBtn = document.getElementById('spinBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const applyBtn = document.getElementById('applyBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const resultVal = document.getElementById('resultVal');
+    const metaHint = document.getElementById('metaHint');
+    const listBox = document.getElementById('listBox');
+    const countHint = document.getElementById('countHint');
+
+    let items = loadItems();
+    listBox.value = items.join("\n");
+
+    // ====== Wheel physics ======
+    let angle = 0;       // current rotation angle (radians)
+    let angVel = 0;      // angular velocity
+    let spinning = false;
+    let lastChosen = null;
+
+    function normalizeRad(a){
+      const TAU = Math.PI * 2;
+      a = a % TAU;
+      if (a < 0) a += TAU;
+      return a;
+    }
+
+    function getIndexAtPointer(){
+      const n = Math.max(items.length, 1);
+      const TAU = Math.PI * 2;
+      const arc = TAU / n;
+
+      // 关键：让“第0块扇区的中心”对准正上方指针，而不是让分割线对准指针。
+      // Key: align the CENTER of slice 0 to the top pointer (not the border line).
+      const pointerAngle = -Math.PI / 2;      // 指针方向：正上方 / pointer points up
+      const startAngle = -Math.PI / 2 - arc/2; // 画轮盘时的起始角（第0块从这里开始）
+
+      // 将指针角度映射到轮盘自身坐标系（扣掉当前旋转角）
+      const local = normalizeRad(pointerAngle - angle);
+      const rel = normalizeRad(local - startAngle);
+
+      return Math.floor(rel / arc) % n;
+    }
+
+    function pickLabel(){
+      const i = getIndexAtPointer();
+      return items[i] ?? "—";
+    }
+
+    function hslColor(i, n){
+      // Evenly spread hues.
+      const hue = (i * (360 / Math.max(n, 1))) % 360;
+      return `hsl(${hue}, 70%, 55%)`;
+    }
+
+    function drawWheel(){
+      const W = canvas.width, H = canvas.height;
+      const cx = W/2, cy = H/2;
+      const r = Math.min(W, H) * 0.46;
+      const rInner = r * 0.22;
+
+      ctx.clearRect(0,0,W,H);
+
+      // Background ring
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      // soft shadow
+      ctx.shadowColor = 'rgba(0,0,0,.35)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 10;
+
+      // Outer circle
+      ctx.beginPath();
+      ctx.arc(0,0,r+10,0,Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,.05)';
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Rotate wheel
+      ctx.rotate(angle);
+
+      const n = Math.max(items.length, 1);
+      const arc = (Math.PI*2)/n;
+
+      // 让第0块的“中心”对准指针（正上方），视觉上更对齐
+      // Align slice-0 center to the pointer (top) for better visual match
+      let start = -Math.PI/2 - arc/2;
+
+      // Segments
+      for(let i=0;i<n;i++){
+        const end = start + arc;
+
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,r,start,end);
+        ctx.closePath();
+        ctx.fillStyle = hslColor(i, n);
+        ctx.fill();
+
+        // segment border
+        ctx.strokeStyle = 'rgba(255,255,255,.28)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Text
+        const label = items[i] ?? '';
+        const mid = (start + end)/2;
+        ctx.save();
+        ctx.rotate(mid);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(0,0,0,.65)';
+        ctx.font = '700 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Microsoft YaHei"';
+        ctx.fillText(label, r*0.90, 0);
+
+        // subtle highlight text
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        ctx.fillText(label, r*0.90, 0);
+        ctx.restore();
+
+        start = end;
+      }
+
+      // Inner circle
+      ctx.rotate(-angle);
+      ctx.beginPath();
+      ctx.arc(0,0,rInner,0,Math.PI*2);
+      ctx.fillStyle = 'rgba(17,26,51,.95)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.12)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Pointer tick (small notch line)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.beginPath();
+      ctx.moveTo(0, -r-2);
+      ctx.lineTo(0, -r+18);
+      ctx.strokeStyle = 'rgba(0,0,0,.65)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+
+      // Update hints
+      countHint.textContent = `${items.length} 项 / items`;
+    }
+
+    function tick(){
+      // Animation loop
+      if (spinning){
+        angle += angVel;
+        // friction (higher => longer spin)
+        angVel *= 0.9915;
+
+        // clamp tiny velocity
+        if (Math.abs(angVel) < 0.0022){
+          spinning = false;
+          angVel = 0;
+          const picked = pickLabel();
+          lastChosen = picked;
+          resultVal.textContent = picked;
+          metaHint.textContent = `已选中：${picked} / Selected: ${picked}`;
+          spinBtn.disabled = false;
+        }
+      }
+
+      drawWheel();
+      requestAnimationFrame(tick);
+    }
+
+    // ====== Helpers ======
+    function loadItems(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return [...DEFAULT_ITEMS];
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr) || arr.length === 0) return [...DEFAULT_ITEMS];
+        return arr.map(x => String(x).trim()).filter(Boolean);
+      }catch{
+        return [...DEFAULT_ITEMS];
+      }
+    }
+
+    function saveItems(){
+      localStorage.setItem(LS_KEY, JSON.stringify(items));
+    }
+
+    function parseTextarea(){
+      const arr = listBox.value
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      return arr.length ? arr : [...DEFAULT_ITEMS];
+    }
+
+    function shuffle(array){
+      const a = [...array];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // ====== Events ======
+    spinBtn.addEventListener('click', () => {
+      if (spinning || items.length < 2) return;
+      spinning = true;
+      spinBtn.disabled = true;
+      resultVal.textContent = '…';
+      metaHint.textContent = '旋转中 / Spinning…';
+
+      // Random initial speed + direction
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      const base = 0.33 + Math.random() * 0.12; // ~fast start
+      angVel = base * dir;
+
+      // Prevent same result too often (tiny nudge)
+      if (lastChosen && items.length >= 3){
+        const now = pickLabel();
+        if (now === lastChosen) angle += (Math.PI * 2) / items.length;
+      }
+    });
+
+    shuffleBtn.addEventListener('click', () => {
+      items = shuffle(items);
+      listBox.value = items.join('\n');
+      saveItems();
+      metaHint.textContent = '已打乱顺序 / Shuffled.';
+    });
+
+    resetBtn.addEventListener('click', () => {
+      items = [...DEFAULT_ITEMS];
+      listBox.value = items.join('\n');
+      saveItems();
+      resultVal.textContent = '—';
+      metaHint.textContent = '已恢复默认 / Reset to default.';
+    });
+
+    applyBtn.addEventListener('click', () => {
+      items = parseTextarea();
+      saveItems();
+      resultVal.textContent = '—';
+      metaHint.textContent = '已应用列表 / Applied.';
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const txt = (resultVal.textContent || '').trim();
+      if (!txt || txt === '—' || txt === '…') return;
+      try{
+        await navigator.clipboard.writeText(txt);
+        metaHint.textContent = `已复制：${txt} / Copied: ${txt}`;
+      }catch{
+        // fallback
+        const tmp = document.createElement('textarea');
+        tmp.value = txt; document.body.appendChild(tmp);
+        tmp.select(); document.execCommand('copy');
+        document.body.removeChild(tmp);
+        metaHint.textContent = `已复制：${txt} / Copied: ${txt}`;
+      }
+    });
+
+    // Kick off
+    drawWheel();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
